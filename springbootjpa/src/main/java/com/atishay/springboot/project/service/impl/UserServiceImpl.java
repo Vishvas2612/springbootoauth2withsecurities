@@ -16,12 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.atishay.springboot.common.enums.EnumForUserRole;
 import com.atishay.springboot.common.payload.SignUpRequest;
 import com.atishay.springboot.common.utils.EntitySpecificationUtils;
+import com.atishay.springboot.common.utils.MethodUtils;
 import com.atishay.springboot.project.model.User;
 import com.atishay.springboot.project.model.UserRole;
 import com.atishay.springboot.project.model.User_;
 import com.atishay.springboot.project.repository.UserCustomRepository;
 import com.atishay.springboot.project.repository.UserRepository;
 import com.atishay.springboot.project.repository.UserRoleRepository;
+import com.atishay.springboot.project.service.UserRoleService;
 import com.atishay.springboot.project.service.UserService;
 
 /***
@@ -41,14 +43,14 @@ public class UserServiceImpl implements UserService {
 	@Autowired
 	private UserCustomRepository userCustomRepository;
 
-
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
 	@Autowired
 	private UserRoleRepository userRoleRepository;
 
-
+	@Autowired
+	private UserRoleService userRoleService;
 
 	@Transactional
 	@Override
@@ -63,18 +65,17 @@ public class UserServiceImpl implements UserService {
 		user.setUsername(signUpRequest.getUsername());
 		user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
 
+		UserRole userRole = userRoleRepository.findByUserRoleName(EnumForUserRole.ROLE_ADMIN.toString()).orElse(null);
 
+		if (MethodUtils.isObjectisNullOrEmpty(userRole)) {
+			userRole = new UserRole();
+			userRole.setUserRoleName(EnumForUserRole.ROLE_ADMIN.toString());
+			userRoleService.saveAndFlushUserRole(userRole);
 
-		// set user role
-		Optional<UserRole> optionalUserRole = userRoleRepository
-				.findByUserRoleName(EnumForUserRole.ROLE_SUPER_ADMIN.toString());
-		if (optionalUserRole.isPresent()) {
-			user.setUserRole(optionalUserRole.get());
 		}
 
-		
+		user.setUserRole(userRole);
 
-	
 		user = userRepository.saveAndFlush(user);
 
 		return user;
@@ -95,9 +96,8 @@ public class UserServiceImpl implements UserService {
 	@Override
 	public Page<User> findUsersBySeachCriteria(String organizationId, String searchCriteria, PageRequest request) {
 
-
-		return userRepository.findAll(EntitySpecificationUtils.textInAllColumnsForUser(searchCriteria, Arrays
-				.asList(User_.firstName.getName(), User_.email.getName(), User_.username.getName(), User_.age.getName())),
+		return userRepository.findAll(EntitySpecificationUtils.textInAllColumnsForUser(searchCriteria, Arrays.asList(
+				User_.firstName.getName(), User_.email.getName(), User_.username.getName(), User_.age.getName())),
 				request);
 
 	}
